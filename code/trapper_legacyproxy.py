@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import re
 import struct
 
 
@@ -43,42 +42,6 @@ class ZabbixLegacyClientProxy:
             return json.dumps(content).encode('utf-8')
         return data
 
-    @staticmethod
-    def upgrade_response(data: bytes):
-        """
-        In response['data'][0]['delay'] value may be string with suffix
-        Replace with int seconds
-        """
-
-        upgraded = False
-        content = json.loads(data)
-        if isinstance(content['data'], list):
-            for item in content['data']:
-                if not isinstance(item, dict):
-                    continue
-                for key, value in item.items():
-                    if not isinstance(value, str):
-                        continue
-                    if key in ["delay", "history", "trends"]:
-                        r = re.match(
-                            r'(?P<value>\d+)(?P<suffix>[smhdw]?)]',
-                            value,
-                        )
-                        if r:
-                            value = int(r.group('value'))
-                            suffix = r.group('suffix')
-                            multipliers = {
-                                'm': 60,
-                                'h': 3600,
-                                'd': 86400,
-                                'w': 604800,
-                            }
-                            item[key] = value * multipliers.get(suffix, 1)
-                        upgraded = True
-        if upgraded:
-            return json.dumps(content).encode('utf-8')
-        return data
-
     @classmethod
     async def request_replacer(cls, reader, writer):
         buffer = b''
@@ -96,17 +59,10 @@ class ZabbixLegacyClientProxy:
             writer.close()
 
     @classmethod
-    async def response_replacer(cls, reader, writer):
-        buffer = b''
+    async def transparent_pipe(cls, reader, writer):
         try:
             while not reader.at_eof():
-                buffer += await reader.read(2048)
-            try:
-                data = cls.upgrade_request(buffer)
-            except (IndexError, ValueError):
-                logger.exception("Cannot upgrade response {}".format(buffer))
-                data = buffer
-            writer.write(data)
+                writer.write(await reader.read(2048))
         finally:
             writer.close()
 
@@ -117,7 +73,7 @@ class ZabbixLegacyClientProxy:
                 ZABBIX_PORT,
             )
             request_pipe = self.request_replacer(local_reader, remote_writer)
-            response_pipe = self.response_replacer(remote_reader, local_writer)
+            response_pipe = self.transparent_pipe(remote_reader, local_writer)
             await asyncio.gather(request_pipe, response_pipe)
         finally:
             local_writer.close()
