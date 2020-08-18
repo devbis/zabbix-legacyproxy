@@ -16,7 +16,7 @@ PROXY_PORT = 8080
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-timedelta_rx = re.compile(r'(?P<value>\d+)(?P<suffix>[smhdw]?)]')
+timedelta_rx = re.compile(r'(?P<value>\d+)(?P<suffix>[smhdw]?)')
 
 
 def fix_timedelta(value):
