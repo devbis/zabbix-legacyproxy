@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 
 import aiohttp
@@ -7,7 +8,9 @@ from aiohttp import (ClientConnectionError, ClientOSError, ClientResponse,
                      hdrs, web)
 from multidict import CIMultiDict
 
-ZABBIX_RPC_URL = 'http://127.0.0.1'
+os.environ.setdefault('ZBX_API', 'http://127.0.0.1')
+
+ZABBIX_RPC_URL = os.environ['ZBX_API']
 PROXY_PORT = 8080
 
 logger = logging.getLogger(__name__)
@@ -65,6 +68,22 @@ async def fix_json_response(response: ClientResponse) -> bytes:
     return json.dumps(content, ensure_ascii=False).encode('utf-8')
 
 
+async def get_fixed_content(request: web.Request):
+    try:
+        content = await request.json()
+    except ValueError:
+        return request.content
+    try:
+        method = content.get('method')
+    except AttributeError:
+        return request.content
+
+    if method == 'user.authenticate':
+        content['method'] = 'user.login'
+
+    return json.dumps(content, ensure_ascii=False)
+
+
 async def handler_path(request: web.Request):
     path = request.raw_path
     upstream_url = '{}{}'.format(ZABBIX_RPC_URL.rstrip('/?'), path)
@@ -76,13 +95,14 @@ async def handler_path(request: web.Request):
     ]:
         if header in req_headers:
             del req_headers[header]
+    data = await get_fixed_content(request)
     async with aiohttp.ClientSession() as client:
         try:
             logger.debug('Fetch {}'.format(upstream_url))
             async with client.request(
                 request.method,
                 upstream_url,
-                data=request.content,
+                data=data,
                 headers=req_headers,
             ) as resp:
                 if 200 <= resp.status < 300:
