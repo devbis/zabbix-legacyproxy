@@ -17,9 +17,9 @@ ZABBIX_SERVER = os.environ['ZBX_SERVER']
 ZABBIX_PORT = int(os.environ['ZBX_PORT'])
 
 info_rx = re.compile(
-    r"processed: (\d+); failed: (\d+); total: (\d+); seconds spent: ([\d.]+)]"
+    r"processed: (\d+); failed: (\d+); total: (\d+); seconds spent: ([\d.]+)"
 )
-info_replacement = "Processed {} Failed {} Total {} Seconds spent {}}"
+info_replacement = "Processed {} Failed {} Total {} Seconds spent {}"
 
 
 def packed2data(packed_data: bytes) -> bytes:
@@ -86,10 +86,12 @@ class ZabbixLegacyClientProxy:
             try:
                 data = packed2data(buffer)
                 data = cls.upgrade_request(data)
-            except (IndexError, ValueError):
+                data = data2packed(data)
+            except (IndexError, ValueError, struct.error):
                 logger.exception("Cannot upgrade request {}".format(buffer))
                 data = buffer
-            writer.write(data2packed(data))
+            writer.write(data)
+            await writer.drain()
         finally:
             writer.close()
 
@@ -100,11 +102,14 @@ class ZabbixLegacyClientProxy:
             while not reader.at_eof():
                 buffer += await reader.read(2048)
             try:
-                data = cls.upgrade_response(buffer)
-            except (IndexError, ValueError):
+                data = packed2data(buffer)
+                data = cls.upgrade_response(data)
+                data = data2packed(data)
+            except (IndexError, ValueError, struct.error):
                 logger.exception("Cannot upgrade response {}".format(buffer))
                 data = buffer
             writer.write(data)
+            await writer.drain()
         finally:
             writer.close()
 
