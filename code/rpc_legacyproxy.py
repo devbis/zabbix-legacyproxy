@@ -14,6 +14,7 @@ ZABBIX_RPC_URL = os.environ['ZBX_API']
 PROXY_PORT = 8080
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 timedelta_rx = re.compile(r'(?P<value>\d+)(?P<suffix>[smhdw]?)]')
 
@@ -68,7 +69,7 @@ async def fix_json_response(response: ClientResponse) -> bytes:
     return json.dumps(content, ensure_ascii=False).encode('utf-8')
 
 
-async def get_fixed_content(request: web.Request):
+async def get_fixed_request_content(request: web.Request):
     try:
         content = await request.json()
     except ValueError:
@@ -80,6 +81,7 @@ async def get_fixed_content(request: web.Request):
 
     if method == 'user.authenticate':
         content['method'] = 'user.login'
+        content['params'].pop('auth', None)
 
     return json.dumps(content, ensure_ascii=False)
 
@@ -92,10 +94,12 @@ async def handler_path(request: web.Request):
         hdrs.HOST,
         hdrs.CONNECTION,
         hdrs.COOKIE,
+        hdrs.CONTENT_LENGTH,
+        hdrs.CONTENT_ENCODING,
     ]:
         if header in req_headers:
             del req_headers[header]
-    data = await get_fixed_content(request)
+    data = await get_fixed_request_content(request)
     async with aiohttp.ClientSession() as client:
         try:
             logger.debug('Fetch {}'.format(upstream_url))
