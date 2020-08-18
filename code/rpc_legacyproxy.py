@@ -81,7 +81,7 @@ async def get_fixed_request_content(request: web.Request):
 
     if method == 'user.authenticate':
         content['method'] = 'user.login'
-        content['params'].pop('auth', None)
+        content.pop('auth', None)
 
     return json.dumps(content, ensure_ascii=False)
 
