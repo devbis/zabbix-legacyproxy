@@ -22,11 +22,16 @@ info_rx = re.compile(
 info_replacement = "Processed {} Failed {} Total {} Seconds spent {}"
 
 
-def packed2data(packed_data: bytes) -> bytes:
-    header, flags, length = struct.unpack('<4sBQ', packed_data[:13])
+def get_packet_length(header: bytes) -> int:
+    header, flags, length = struct.unpack('<4sBQ', header)
     assert header == b'ZBXD'
     assert flags == 1
     assert length != 0
+    return length
+
+
+def packed2data(packed_data: bytes) -> bytes:
+    length = get_packet_length(packed_data[:13])
     (data, ) = struct.unpack('<%ds' % length, packed_data[13:13+length])
     return data
 
@@ -79,18 +84,19 @@ class ZabbixLegacyClientProxy:
 
     @classmethod
     async def request_replacer(cls, reader, writer):
-        buffer = b''
         try:
-            while not reader.at_eof():
-                buffer += await reader.read(2048)
+            header = await reader.read(13)
+            length = get_packet_length(header)
+            data = await reader.read(length)
             try:
-                data = packed2data(buffer)
                 data = cls.upgrade_request(data)
                 data = data2packed(data)
             except (IndexError, ValueError, struct.error):
-                logger.exception("Cannot upgrade request {}".format(buffer))
-                data = buffer
+                data = header + data
+                logger.exception("Cannot upgrade request {}".format(data))
             writer.write(data)
+            while not reader.at_eof():
+                await reader.read(1024)
         finally:
             await writer.drain()
             writer.close()
@@ -130,21 +136,6 @@ class ZabbixLegacyClientProxy:
             request_pipe = self.request_replacer(local_reader, remote_writer)
             response_pipe = self.response_replacer(remote_reader, local_writer)
             await asyncio.gather(request_pipe, response_pipe)
-            done, pending = await asyncio.wait(
-                [
-                    asyncio.create_task(request_pipe),
-                    asyncio.create_task(response_pipe),
-                ],
-                return_when=asyncio.FIRST_EXCEPTION,
-            )
-            for t in pending:
-                t.cancel()
-                try:
-                    await t
-                except asyncio.CancelledError:
-                    pass
-            for t in done:
-                t.result()
         except Exception:
             logger.exception('Exception in handle_client')
         finally:
