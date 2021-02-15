@@ -91,8 +91,8 @@ class ZabbixLegacyClientProxy:
                 logger.exception("Cannot upgrade request {}".format(buffer))
                 data = buffer
             writer.write(data)
-            await writer.drain()
         finally:
+            await writer.drain()
             writer.close()
 
     @classmethod
@@ -109,8 +109,8 @@ class ZabbixLegacyClientProxy:
                 logger.exception("Cannot upgrade response {}".format(buffer))
                 data = buffer
             writer.write(data)
-            await writer.drain()
         finally:
+            await writer.drain()
             writer.close()
 
     @classmethod
@@ -130,6 +130,23 @@ class ZabbixLegacyClientProxy:
             request_pipe = self.request_replacer(local_reader, remote_writer)
             response_pipe = self.response_replacer(remote_reader, local_writer)
             await asyncio.gather(request_pipe, response_pipe)
+            done, pending = await asyncio.wait(
+                [
+                    asyncio.create_task(request_pipe),
+                    asyncio.create_task(response_pipe),
+                ],
+                return_when=asyncio.FIRST_EXCEPTION,
+            )
+            for t in pending:
+                t.cancel()
+                try:
+                    await t
+                except asyncio.CancelledError:
+                    pass
+            for t in done:
+                t.result()
+        except Exception:
+            logger.exception('Exception in handle_client')
         finally:
             local_writer.close()
 
