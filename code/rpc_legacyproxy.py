@@ -14,7 +14,6 @@ ZABBIX_RPC_URL = os.environ['ZBX_API']
 PROXY_PORT = 8080
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 timedelta_rx = re.compile(r'(?P<value>\d+)(?P<suffix>[smhdw]?)')
 
@@ -79,9 +78,24 @@ async def get_fixed_request_content(request: web.Request):
     except AttributeError:
         return request.content
 
-    if method == 'user.authenticate':
+    if method in ['user.authenticate', 'user.login']:
         content['method'] = 'user.login'
         content.pop('auth', None)
+    if method in ['usermacro.get']:
+        params = content.get('params', {})
+        if params.get('output') == 'refer':
+            params['output'] = {
+                'usermacro.get': [
+                    # 'globalmacroid',
+                    'hostid',
+                    'hostmacroid',
+                    'macro',
+                    'value',
+                    'description',
+                    'type',
+                ],
+            }.get(method, 'extend')
+        content['params'] = params
 
     return json.dumps(content, ensure_ascii=False)
 
@@ -138,6 +152,8 @@ async def handler_path(request: web.Request):
 
 
 def main():
+    logging.basicConfig(level=logging.DEBUG)
+
     app = web.Application()
     app.router.add_route(hdrs.METH_ANY, r'/{path:.*}', handler_path)
     app.router.add_route(hdrs.METH_ANY, r'', handler_path)
