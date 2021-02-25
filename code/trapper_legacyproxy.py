@@ -5,7 +5,6 @@ import os
 import re
 import struct
 
-
 logger = logging.getLogger(__name__)
 os.environ.setdefault('ZBX_SERVER', '127.0.0.1')
 os.environ.setdefault('ZBX_PORT', '10051')
@@ -17,7 +16,7 @@ ZABBIX_SERVER = os.environ['ZBX_SERVER']
 ZABBIX_PORT = int(os.environ['ZBX_PORT'])
 
 info_rx = re.compile(
-    r"processed: (\d+); failed: (\d+); total: (\d+); seconds spent: ([\d.]+)"
+    r"processed: (\d+); failed: (\d+); total: (\d+); seconds spent: ([\d.]+)",
 )
 info_replacement = "Processed {} Failed {} Total {} Seconds spent {}"
 
