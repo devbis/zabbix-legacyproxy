@@ -98,10 +98,10 @@ async def get_fixed_request_content(request: web.Request):
         content['params'] = params
     elif method in ['host.get']:
         params = content.get('params', {})
-        select_macros = params.pop('select_macros')
+        select_macros = params.pop('select_macros', None)
         if select_macros:
             params['selectMacros'] = select_macros
-        select_groups = params.pop('select_groups')
+        select_groups = params.pop('select_groups', None)
         if select_groups:
             params['selectGroups'] = select_groups
 
