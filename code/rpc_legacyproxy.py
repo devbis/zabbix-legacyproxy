@@ -87,12 +87,12 @@ async def get_fixed_request_content(request: web.Request):
             params['output'] = {
                 'usermacro.get': [
                     # 'globalmacroid',
-                    'hostid',
+                    # 'hostid',
                     'hostmacroid',
-                    'macro',
-                    'value',
-                    'description',
-                    'type',
+                    # 'macro',
+                    # 'value',
+                    # 'description',
+                    # 'type',
                 ],
             }.get(method, 'extend')
         content['params'] = params
