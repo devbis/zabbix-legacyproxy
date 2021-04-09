@@ -60,17 +60,22 @@ async def fix_json_response(response: ClientResponse, method: str) -> bytes:
 
     fixed_result = []
     for item in result:
-        fixed_result.append({
+        new_item = {
             key: fix_timedelta(value)
             for key, value in item.items()
-        })
+        }
+        if 'interfaces' in new_item and isinstance(new_item['interfaces'], list):
+            interface = new_item['interfaces'][0]
+            for f in ['main', 'type', 'useip', 'ip', 'dns', 'port']:
+                new_item[f] = interface.get(f, '')
+        fixed_result.append(new_item)
 
-    if method == 'host.get':
-        for item in result:
-            if 'interfaces' in item and item['interfaces']:
-                interface = item['interfaces'][0]
-                for f in ['main', 'type', 'useip', 'ip', 'dns', 'port']:
-                    item[f] = interface.get(f, '')
+    # if method == 'host.get':
+    #     for item in result:
+    #         if 'interfaces' in item and item['interfaces']:
+    #             interface = item['interfaces'][0]
+    #             for f in ['main', 'type', 'useip', 'ip', 'dns', 'port']:
+    #                 item[f] = interface.get(f, '')
 
     content['result'] = fixed_result
     return json.dumps(content, ensure_ascii=False).encode('utf-8')
