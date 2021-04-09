@@ -11,7 +11,7 @@ from multidict import CIMultiDict
 os.environ.setdefault('ZBX_API', 'http://127.0.0.1')
 
 ZABBIX_RPC_URL = os.environ['ZBX_API']
-PROXY_PORT = 8080
+PROXY_PORT = 80
 
 logger = logging.getLogger(__name__)
 
