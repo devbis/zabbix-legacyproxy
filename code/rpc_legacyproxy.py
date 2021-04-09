@@ -109,7 +109,7 @@ async def get_fixed_request_content(request: web.Request):
                 ],
             }.get(method, 'extend')
         content['params'] = params
-    elif method in ['host.get', 'trigger.get']:
+    elif method.endswith('.get'):
         params = content.get('params', {})
         select_macros = params.pop('select_macros', None)
         if select_macros:
