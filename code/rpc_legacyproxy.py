@@ -139,7 +139,7 @@ async def handler_path(request: web.Request):
     data, method = await get_fixed_request_content(request)
     async with aiohttp.ClientSession() as client:
         try:
-            logger.debug('Fetch {}'.format(upstream_url))
+            logger.info('Fetch {} with {}'.format(upstream_url, data))
             async with client.request(
                 request.method,
                 upstream_url,
