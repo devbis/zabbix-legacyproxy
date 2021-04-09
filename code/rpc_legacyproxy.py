@@ -109,7 +109,7 @@ async def get_fixed_request_content(request: web.Request):
                 ],
             }.get(method, 'extend')
         content['params'] = params
-    elif method in ['host.get']:
+    elif method in ['host.get', 'trigger.get']:
         params = content.get('params', {})
         select_macros = params.pop('select_macros', None)
         if select_macros:
@@ -117,7 +117,12 @@ async def get_fixed_request_content(request: web.Request):
         select_groups = params.pop('select_groups', None)
         if select_groups:
             params['selectGroups'] = select_groups
-        params['selectInterfaces'] = 'extend'
+        select_hosts = params.pop('select_hosts', None)
+        if select_hosts:
+            params['selectHosts'] = select_hosts
+
+        if method.startswith('host.'):  # for interfaces
+            params['selectInterfaces'] = 'extend'
         content['params'] = params
     elif method in ['host.create']:
         params = content.get('params', {})
