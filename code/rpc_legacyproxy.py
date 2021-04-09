@@ -128,9 +128,8 @@ async def get_fixed_request_content(request: web.Request):
         new_params = []
         for p in params:
             interface = {}
-            for f in ['ip', 'port', 'useip']:
+            for f in ['ip', 'port', 'useip', 'dns']:
                 interface[f] = p.pop(f, '')
-            interface['dns'] = ''
             interface['type'] = 1
             interface['main'] = 1
             p['interfaces'] = [interface]
