@@ -119,6 +119,25 @@ async def get_fixed_request_content(request: web.Request):
             params['selectGroups'] = select_groups
         params['selectInterfaces'] = 'extend'
         content['params'] = params
+    elif method in ['host.create']:
+        params = content.get('params', {})
+        single = False
+        if not isinstance(params, list):
+            params = [params]
+            single = True
+        new_params = []
+        for p in params:
+            interface = {}
+            for f in ['ip', 'port', 'useip']:
+                interface[f] = p.pop(f, '')
+            interface['dns'] = ''
+            interface['type'] = 1
+            interface['main'] = 1
+            p['interfaces'] = [interface]
+            new_params.append(p)
+        if single:
+            params = params[0]
+        content['params'] = params
 
     return json.dumps(content, ensure_ascii=False), method
 
