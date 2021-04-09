@@ -40,7 +40,7 @@ def fix_timedelta(value):
         return value
 
 
-async def fix_json_response(response: ClientResponse) -> bytes:
+async def fix_json_response(response: ClientResponse, method: str) -> bytes:
     body = await response.read()
     logger.debug('  ..with data {}'.format(body))
     try:
@@ -64,6 +64,14 @@ async def fix_json_response(response: ClientResponse) -> bytes:
             key: fix_timedelta(value)
             for key, value in item.items()
         })
+
+    if method == 'host.get':
+        for item in result:
+            if 'interfaces' in item and item['interfaces']:
+                interface = item['interfaces'][0]
+                for f in ['main', 'type', 'useip', 'ip', 'dns', 'port']:
+                    item[f] = interface.get(f, '')
+
     content['result'] = fixed_result
     return json.dumps(content, ensure_ascii=False).encode('utf-8')
 
@@ -104,10 +112,10 @@ async def get_fixed_request_content(request: web.Request):
         select_groups = params.pop('select_groups', None)
         if select_groups:
             params['selectGroups'] = select_groups
-
+        params['selectInterfaces'] = 'extend'
         content['params'] = params
 
-    return json.dumps(content, ensure_ascii=False)
+    return json.dumps(content, ensure_ascii=False), method
 
 
 async def handler_path(request: web.Request):
@@ -123,7 +131,7 @@ async def handler_path(request: web.Request):
     ]:
         if header in req_headers:
             del req_headers[header]
-    data = await get_fixed_request_content(request)
+    data, method = await get_fixed_request_content(request)
     async with aiohttp.ClientSession() as client:
         try:
             logger.debug('Fetch {}'.format(upstream_url))
@@ -134,7 +142,7 @@ async def handler_path(request: web.Request):
                 headers=req_headers,
             ) as resp:
                 if 200 <= resp.status < 300:
-                    body = await fix_json_response(resp)
+                    body = await fix_json_response(resp, method)
                 else:
                     body = await resp.read()
                 resp_headers = CIMultiDict(resp.headers)
