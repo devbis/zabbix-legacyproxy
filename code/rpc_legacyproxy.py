@@ -96,6 +96,16 @@ async def get_fixed_request_content(request: web.Request):
                 ],
             }.get(method, 'extend')
         content['params'] = params
+    elif method in ['host.get']:
+        params = content.get('params', {})
+        select_macros = params.pop('select_macros')
+        if select_macros:
+            params['selectMacros'] = select_macros
+        select_groups = params.pop('select_groups')
+        if select_groups:
+            params['selectGroups'] = select_groups
+
+        content['params'] = params
 
     return json.dumps(content, ensure_ascii=False)
 
