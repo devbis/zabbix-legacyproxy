@@ -143,6 +143,7 @@ async def handler_path(request: web.Request):
             ) as resp:
                 if 200 <= resp.status < 300:
                     body = await fix_json_response(resp, method)
+                    logger.info(f'--> Updated: {body}')
                 else:
                     body = await resp.read()
                 resp_headers = CIMultiDict(resp.headers)
